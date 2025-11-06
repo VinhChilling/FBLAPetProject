@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Virtual Pet — Multi-Pet, Budget, Tasks, Vaccines</title>
+<style>
+  :root{
+    --bg:#0f1220;
+    --panel:#171b2e;
+    --soft:#1e2441;
+    --accent:#8dd9ff;
+    --accent-2:#86ffb7;
+    --warn:#ffb677;
+    --danger:#ff6b6b;
+    --good:#79f29c;
+    --text:#e9eefc;
+    --muted:#97a4c3;
+    --gold:#ffd76b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:linear-gradient(180deg,#0e1329,#0f1220 40%);
+    color:var(--text); font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  header{
+    display:flex; flex-wrap:wrap; align-items:center; gap:14px;
+    padding:14px 18px; border-bottom:1px solid #263059; background:rgba(20,24,45,.7); backdrop-filter: blur(6px);
+    position:sticky; top:0; z-index:9;
+  }
+  header .brand{font-weight:800; letter-spacing:.5px}
+  header .pill{
+    background:var(--panel); padding:8px 12px; border-radius:100px; font-size:14px; color:var(--muted);
+    border:1px solid #20274a;
+  }
+  header .pill strong{color:var(--text)}
+  .container{
+    display:grid; grid-template-columns:280px 1fr; gap:16px; padding:16px; max-width:1200px; margin:0 auto;
+  }
+  aside{
+    background:var(--panel); border:1px solid #20274a; border-radius:12px; padding:12px;
+  }
+  main{
+    background:var(--panel); border:1px solid #20274a; border-radius:12px; padding:0;
+    overflow:hidden; display:flex; flex-direction:column;
+  }
+  .tabs{display:flex; gap:4px; padding:6px; background:var(--soft); border-bottom:1px solid #20274a}
+  .tabs button{
+    border:1px solid #2a335c; background:#161b33; color:var(--text); padding:8px 12px; border-radius:8px;
+    cursor:pointer; font-weight:600;
+  }
+  .tabs button.active{background:#20274a}
+  .content{padding:14px; display:grid; gap:12px}
+  .panel{background:#141833; border:1px solid #242c55; border-radius:12px; padding:12px}
+  .pet-card{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px; border-radius:10px; background:#141833; border:1px solid #232a4e; margin-bottom:8px; cursor:pointer;
+  }
+  .pet-card.active{outline:2px solid var(--accent)}
+  .pet-name{font-weight:700}
+  .muted{color:var(--muted); font-size:13px}
+  .btn{
+    background:linear-gradient(180deg,#2a356a,#202a5a); color:var(--text); border:1px solid #2b3570;
+    border-radius:10px; padding:8px 12px; cursor:pointer; font-weight:700;
+  }
+  .btn:disabled{opacity:.55; cursor:not-allowed}
+  .btn-alt{
+    background:transparent; border:1px dashed #33407a; color:#c6d2ff; border-radius:10px; padding:8px 10px; cursor:pointer;
+  }
+  .grid{display:grid; gap:12px}
+  .grid.cols-2{grid-template-columns:1fr 1fr}
+  .grid.cols-3{grid-template-columns:1fr 1fr 1fr}
+  .statbar{height:10px; background:#0f1330; border-radius:999px; border:1px solid #2a356c; overflow:hidden}
+  .statbar > div{height:100%}
+  .small{font-size:12px}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  .grow{flex:1}
+  .label{font-size:12px; color:var(--muted)}
+  .money{color:var(--gold); font-weight:800}
+  canvas{background:radial-gradient(ellipse at center, #1a2040 0%, #11152e 80%); border:1px solid #222a52; border-radius:14px}
+  .toastwrap{position:fixed; right:12px; bottom:12px; display:flex; flex-direction:column; gap:8px; z-index:100}
+  .toast{
+    background:#131737; border:1px solid #2a3367; border-left:5px solid var(--accent); padding:10px 12px; border-radius:10px;
+    box-shadow:0 6px 26px rgba(0,0,0,.35)
+  }
+  .toast.warn{border-left-color:var(--warn)}
+  .toast.danger{border-left-color:var(--danger)}
+  .danger{color:var(--danger)}
+  .good{color:var(--good)}
+  input,select{
+    background:#0f1330; border:1px solid #2a356c; color:var(--text); border-radius:8px; padding:8px; min-width:0;
+  }
+  .kpi{display:flex; flex-wrap:wrap; gap:8px}
+  .kpi .pill{background:#131737}
+  .hidden{display:none}
+  .hr{height:1px; background:#232a52; margin:8px 0}
+  .footnote{color:#a1aed9; font-size:12px}
+  @media (max-width: 980px){
+    .container{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">Virtual Pet</div>
+    <div class="kpi">
+      <div class="pill">Wallet: <strong class="money" id="kpiWallet">0</strong></div>
+      <div class="pill">Weekly Spend: <strong id="kpiSpend">0</strong> <span class="muted" id="kpiBudget"></span></div>
+      <div class="pill">Day <strong id="kpiDay">1</strong> @ <strong id="kpiHour">08:00</strong></div>
+      <div class="pill">Season: <strong id="kpiSeason">Spring</strong></div>
+      <div class="pill" id="kpiGoalWrap" title="Savings Goal">Goal: <strong id="kpiGoal">—</strong></div>
+    </div>
+    <div class="grow"></div>
+    <button class="btn-alt" id="btnNextHour">Next Hour</button>
+    <button class="btn-alt" id="btnNext6">Next 6 Hours</button>
+    <label class="small"><input type="checkbox" id="autoTick"> Auto time</label>
+  </header>
+
+  <div class="container">
+    <aside>
+      <div class="row" style="margin-bottom:8px">
+        <input id="petSearch" placeholder="Search pets..." class="grow"/>
+        <button class="btn" id="btnAddPet">+ Add Pet</button>
+      </div>
+      <div id="petList"></div>
+      <div class="hr"></div>
+      <div class="small muted">Tip: Click a pet to select. All expenses come from the shared wallet and weekly budget.</div>
+    </aside>
+
+    <main>
+      <div class="tabs">
+        <button class="active" data-tab="tab-pets">Pets</button>
+        <button data-tab="tab-actions">Actions</button>
+        <button data-tab="tab-shop">Shop</button>
+        <button data-tab="tab-goals">Chores & Goals</button>
+        <button data-tab="tab-finance">Finance</button>
+        <button data-tab="tab-save">Save/Load</button>
+      </div>
+      <div class="content">
+
+        <!-- Pets -->
+        <section id="tab-pets" class="grid">
+          <div class="grid cols-2">
+            <div class="panel">
+              <canvas id="petCanvas" width="480" height="280"></canvas>
+              <div class="small muted" id="moodText"></div>
+            </div>
+            <div class="panel">
+              <div id="petSummary"></div>
+              <div class="hr"></div>
+              <div id="petStats"></div>
+              <div class="hr"></div>
+              <div id="petTricks"></div>
+              <div class="hr"></div>
+              <div id="petBadges"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Actions -->
+        <section id="tab-actions" class="grid hidden">
+          <div class="grid cols-3">
+            <div class="panel">
+              <h3>Feed</h3>
+              <div class="row">
+                <select id="feedType">
+                  <option value="kibble">Kibble (5)</option>
+                  <option value="premium">Premium (12)</option>
+                  <option value="treat">Treat (3)</option>
+                </select>
+                <button class="btn" id="btnFeed">Feed</button>
+              </div>
+              <div class="footnote">Diet plan affects benefits and cost.</div>
+            </div>
+            <div class="panel">
+              <h3>Play</h3>
+              <div class="row">
+                <select id="toySelect"><option value="">No toy</option></select>
+                <button class="btn" id="btnPlay">Play</button>
+              </div>
+              <div class="footnote">Toys improve fun and XP.</div>
+            </div>
+            <div class="panel">
+              <h3>Rest / Clean</h3>
+              <div class="row">
+                <input id="restHours" type="number" min="1" max="12" value="4" style="width:90px">
+                <button class="btn" id="btnRest">Rest</button>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <select id="cleanType">
+                  <option value="bath">Bath (uses Soap)</option>
+                  <option value="brush">Brush</option>
+                </select>
+                <button class="btn" id="btnClean">Clean</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid cols-3">
+            <div class="panel">
+              <h3>Healthcare</h3>
+              <div class="row">
+                <button class="btn" id="btnMedicate">Medicine (20)</button>
+                <button class="btn" id="btnVet">Vet (50)</button>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <select id="vaxType">
+                  <option value="distemper">Vaccine: Distemper (40)</option>
+                  <option value="rabies">Vaccine: Rabies (60)</option>
+                </select>
+                <button class="btn" id="btnVaccinate">Vaccinate</button>
+              </div>
+              <div class="footnote" id="vaxInfo"></div>
+            </div>
+
+            <div class="panel">
+              <h3>Diet Plan</h3>
+              <div class="row">
+                <select id="dietPlan">
+                  <option value="standard">Standard</option>
+                  <option value="premium">Premium</option>
+                  <option value="grainfree">Grain-free</option>
+                </select>
+                <button class="btn" id="btnDiet">Set Diet</button>
+              </div>
+              <div class="footnote">
+                Premium: better health on feeds but pricier. Grain-free: slower hunger growth; treats slightly less fun.
+              </div>
+            </div>
+
+            <div class="panel">
+              <h3>Tricks</h3>
+              <div class="row">
+                <select id="trickSelect"><option value="">Choose trick</option></select>
+                <button class="btn" id="btnTrick">Do Trick</button>
+              </div>
+              <div class="footnote">Unlock tricks by leveling up through play and care.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Shop -->
+        <section id="tab-shop" class="grid hidden">
+          <div class="grid cols-3">
+            <div class="panel">
+              <h3>Toys</h3>
+              <div id="shopToys"></div>
+            </div>
+            <div class="panel">
+              <h3>Supplies</h3>
+              <div id="shopSupplies"></div>
+            </div>
+            <div class="panel">
+              <h3>Budget</h3>
+              <div class="row">
+                <input type="number" id="weeklyBudget" placeholder="Weekly budget" min="0">
+                <button class="btn" id="btnSetBudget">Set Budget</button>
+              </div>
+              <div class="row" style="margin-top:6px">
+                <input type="number" id="savingsGoal" placeholder="Savings goal" min="1">
+                <button class="btn" id="btnSetGoal">Set Goal</button>
+              </div>
+              <div class="footnote">Budget resets weekly. Overspend prompts a warning.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Goals -->
+        <section id="tab-goals" class="grid hidden">
+          <div class="panel">
+            <h3>Daily Tasks</h3>
+            <div id="dailyTasks"></div>
+            <div class="row" style="margin-top:8px">
+              <div class="pill">Streak: <strong id="dailyStreak">0</strong></div>
+              <div class="pill">Completed today: <strong id="dailyCompleted">0</strong>/3</div>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Chores (Earn Coins)</h3>
+            <div id="chores"></div>
+          </div>
+        </section>
+
+        <!-- Finance -->
+        <section id="tab-finance" class="grid hidden">
+          <div class="grid cols-2">
+            <div class="panel">
+              <h3>Expenses</h3>
+              <div id="expenseBreakdown"></div>
+            </div>
+            <div class="panel">
+              <h3>Summary</h3>
+              <div id="financeSummary"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Save -->
+        <section id="tab-save" class="grid hidden">
+          <div class="panel">
+            <h3>Persistence</h3>
+            <div class="row">
+              <button class="btn" id="btnSave">Save</button>
+              <button class="btn" id="btnLoad">Load</button>
+              <button class="btn-alt danger" id="btnReset">Reset Game</button>
+            </div>
+            <div class="hr"></div>
+            <div class="row">
+              <button class="btn" id="btnExport">Export JSON</button>
+              <input id="importFile" type="file" accept="application/json">
+              <button class="btn" id="btnImport">Import JSON</button>
+            </div>
+            <textarea id="exportArea" rows="8" style="width:100%; margin-top:8px" placeholder="Exported save will appear here..."></textarea>
+          </div>
+          <div class="panel">
+            <h3>About</h3>
+            <div class="footnote">
+              This game saves to your browser’s localStorage (key: vpet-save). Export regularly to back up your progress.
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <div class="toastwrap" id="toastWrap"></div>
+
+<script>
+/* ----------------------------- Utilities ----------------------------- */
+const clamp = (v, lo=0, hi=100)=> Math.max(lo, Math.min(hi, v));
+const randInt = (a,b)=> Math.floor(Math.random()*(b-a+1))+a;
+const chance = (p)=> Math.random()<p;
+const deepClone = (o)=> JSON.parse(JSON.stringify(o));
+const nowStr = ()=> new Date().toLocaleTimeString();
+
+/* --------------------------- Constants/Config --------------------------- */
+const PRICES = {
+  food: {kibble:5, premium:12, treat:3},
+  toys: {ball:8, puzzle:15, rope:12},
+  supplies: {soap:4},
+  healthcare: {medicine:20, vet:50, vaccine:{distemper:40, rabies:60}},
+};
+const CATEGORIES = {Food:"Food", Supplies:"Supplies", Healthcare:"Healthcare", Toys:"Toys", Vet:"Vet", Other:"Other"};
+const LOCAL_KEY = "vpet-save";
+const SEASON_LENGTH = 15; // days per season
+
+/* ------------------------------- Classes ------------------------------- */
+let nextPetId = 1;
+
+class Pet {
+  constructor({name, species}){
+    this.id = nextPetId++;
+    this.name = name || "Pet";
+    this.species = species || "pet";
+    this.asleep = false;
+
+    // Stats
+    this.hunger = 30; // higher = hungrier
+    this.energy = 80;
+    this.cleanliness = 80;
+    this.health = 85;
+    this.happiness = 80;
+
+    // Progression
+    this.xp = 0;
+    this.level = 1;
+    this.ageDays = 0;
+    this.stage = "baby";
+    this.learnedTricks = [];
+    this.badges = [];
+
+    // Inventory
+    this.toys = []; // "ball","puzzle","rope"
+    this.supplies = {soap:1};
+
+    // Meta
+    this._playsToday = 0;
+    this._cleanStreakDays = 0;
+    this._happyStreakDays = 0;
+
+    // Health extras
+    this.vaccines = {
+      distemper: {done:false, dueDay:3, boosterDue:null},
+      rabies: {done:false, dueDay:5, boosterDue:null}
+    };
+    this.conditions = []; // e.g., {name:"allergy", days:2}
+    this.dietPlan = "standard"; // standard | premium | grainfree
+  }
+
+  snapshot(){
+    return deepClone(this);
+  }
+
+  static from(data){
+    const p = new Pet({name:data.name, species:data.species});
+    Object.assign(p, data);
+    return p;
+  }
+
+  dietMods(){
+    switch(this.dietPlan){
+      case "premium": return {feedHealth:+2, feedHappiness:+2, priceMul:1.2, hungerDrift:0};
+      case "grainfree": return {feedHealth:+0, feedHappiness:-1, priceMul:1.0, hungerDrift:-1};
+      default: return {feedHealth:0, feedHappiness:0, priceMul:1.0, hungerDrift:0};
+    }
+  }
+
+  mood(){
+    if (this.health < 40) return {txt:"sick", face:"x_x"};
+    if (this.happiness > 80 && this.energy > 60 && this.hunger < 40) return {txt:"ecstatic", face:":D"};
+    if (this.happiness > 60) return {txt:"happy", face:"^_^"};
+    if (this.energy < 25) return {txt:"tired", face:"-_-"};
+    if (this.hunger > 70) return {txt:"hungry", face:":("};
+    if (this.cleanliness < 30) return {txt:"grumpy (dirty)", face:">:|"};
+    return {txt:"okay", face:":|"};
+  }
+
+  evolve(){
+    const prev = this.stage;
+    if (this.ageDays >= 10 || this.level >= 5) this.stage = "adult";
+    else if (this.ageDays >= 4 || this.level >= 3) this.stage = "junior";
+    else this.stage = "baby";
+    if (prev !== this.stage) {
+      Game.toast(`${this.name} evolved to ${this.stage}!`, "good");
+      this.addBadge(`Evolved: ${this.stage}`);
+    }
+  }
+
+  addBadge(b){
+    if (!this.badges.includes(b)) this.badges.push(b);
+  }
+
+  levelCheck(){
+    while (this.xp >= this.level * 25) {
+      this.level++;
+      this.happiness = clamp(this.happiness + 5);
+      Game.toast(`${this.name} leveled up to ${this.level}!`, "good");
+      this.maybeLearnTrick();
+    }
+  }
+
+  maybeLearnTrick(){
+    const table = {2:"sit", 3:"roll", 4:"fetch", 5:"dance"};
+    const t = table[this.level];
+    if (t && !this.learnedTricks.includes(t)){
+      this.learnedTricks.push(t);
+      this.addBadge("First Trick");
+      Game.toast(`${this.name} learned a new trick: ${t}`, "good");
+    }
+  }
+
+  tickOneHour(season){
+    // Seasonal modifiers
+    let hungerInc = 7, energyDelta = -8, cleanDelta = -3;
+    if (this.asleep){ hungerInc=5; energyDelta=+12; cleanDelta=-1; }
+    if (season === "Winter"){ hungerInc += 1; energyDelta -= 1; }
+    if (season === "Summer"){ energyDelta -= 1; }
+    if (season === "Spring"){ /* allergy chance handled elsewhere */ }
+    if (season === "Autumn"){ /* no-op */ }
+
+    // Diet modifier (grain-free reduces hunger drift a bit)
+    hungerInc += this.dietMods().hungerDrift;
+
+    this.hunger = clamp(this.hunger + hungerInc);
+    this.energy = clamp(this.energy + energyDelta);
+    this.cleanliness = clamp(this.cleanliness + cleanDelta);
+
+    // Health dynamics
+    let stressors = 0;
+    if (this.hunger > 70) stressors++;
+    if (this.energy < 30) stressors++;
+    if (this.cleanliness < 30) stressors++;
+
+    if (stressors >= 2){
+      this.health = clamp(this.health - 5);
+      this.happiness = clamp(this.happiness - 4);
+    } else if (stressors === 1){
+      this.health = clamp(this.health - 2);
+      this.happiness = clamp(this.happiness - 1);
+    } else {
+      this.health = clamp(this.health + 2);
+      this.happiness = clamp(this.happiness + 1);
+    }
+
+    // Sickness risk
+    if (this.cleanliness < 20 && chance(0.08)) this.health = clamp(this.health - 10);
+    if (this.hunger > 85 && chance(0.08)) this.health = clamp(this.health - 10);
+
+    // Conditions ticking down
+    this.conditions.forEach(c => c.days--);
+    this.conditions = this.conditions.filter(c => c.days > 0);
+
+    // Natural drift
+    if (!this.asleep && this.happiness > 0 && chance(0.1)) this.happiness = clamp(this.happiness - 1);
+  }
+
+  endOfDay(){
+    if (this.cleanliness >= 90){
+      this._cleanStreakDays++;
+      if (this._cleanStreakDays === 3) this.addBadge("Clean Streak (3 days)");
+    } else this._cleanStreakDays = 0;
+
+    if (this.happiness >= 90){
+      this._happyStreakDays++;
+      if (this._happyStreakDays === 5) this.addBadge("Best Friend (5 happy days)");
+    } else this._happyStreakDays = 0;
+
+    this._playsToday = 0;
+    this.ageDays++;
+    this.xp += 2;
+    this.levelCheck();
+    this.evolve();
+
+    // Vaccines overdue penalty
+    for (const key of ["distemper","rabies"]){
+      const v = this.vaccines[key];
+      if (!v.done && Game.state.day >= v.dueDay){
+        this.health = clamp(this.health - 3);
+      }
+    }
+  }
+
+  // Actions
+  feed(kind){
+    const base = PRICES.food[kind];
+    const mods = this.dietMods();
+    const cost = Math.round(base * mods.priceMul);
+    if (!Game.spend(cost, CATEGORIES.Food)) return;
+    let dh=-35, mh=+4, hh=+4;
+    if (kind==="premium"){ dh=-50; mh=+8; hh=+6; }
+    if (kind==="treat"){ dh=-15; mh=+10; hh=0; }
+
+    // Apply diet plan bonuses
+    hh += mods.feedHealth;
+    mh += mods.feedHappiness;
+    if (kind==="treat" && this.dietPlan==="grainfree") mh -= 2;
+
+    this.hunger = clamp(this.hunger + dh);
+    this.happiness = clamp(this.happiness + mh);
+    this.health = clamp(this.health + hh);
+
+    Game.advanceHours(1);
+    Game.toast(`${this.name} enjoyed ${kind}.`, "good");
+  }
+
+  play(toy){
+    let bonus=0;
+    if (toy){
+      if (this.toys.includes(toy)){
+        if (toy==="ball") bonus+=6;
+        if (toy==="puzzle") bonus+=10;
+        if (toy==="rope") bonus+=8;
+      } else {
+        Game.toast(`You don't own a ${toy}. Buy one in the shop.`, "warn");
+      }
+    }
+    this.happiness = clamp(this.happiness + 18 + bonus);
+    this.energy = clamp(this.energy - 14);
+    this.cleanliness = clamp(this.cleanliness - 8);
+    this.hunger = clamp(this.hunger + 10);
+    this.xp += 8 + Math.floor(bonus/2);
+    this._playsToday++;
+    if (this._playsToday === 3) this.addBadge("Play Pal (3 plays today)");
+    this.levelCheck();
+    Game.advanceHours(1);
+    this.maybeLearnTrick();
+  }
+
+  rest(hours){
+    hours = Math.max(1, Math.min(12, parseInt(hours||4)));
+    this.asleep = true;
+    Game.advanceHours(hours);
+    this.asleep = false;
+    Game.toast(`${this.name} rested for ${hours}h.`, "good");
+  }
+
+  clean(kind){
+    if (kind==="bath"){
+      if (this.supplies.soap>0){
+        this.supplies.soap -= 1;
+      } else {
+        Game.toast("No soap in supplies; auto-buying one.", "warn");
+        if (!Game.spend(PRICES.supplies.soap, CATEGORIES.Supplies)) return;
+      }
+      this.cleanliness = clamp(this.cleanliness + 35);
+      this.happiness = clamp(this.happiness + 6);
+      this.xp += 4;
+    } else {
+      this.cleanliness = clamp(this.cleanliness + 15);
+      this.happiness = clamp(this.happiness + 3);
+      this.xp += 2;
+    }
+    this.levelCheck();
+    Game.advanceHours(1);
+  }
+
+  medicate(){
+    if (this.health >= 80){ Game.toast("No need for medicine right now."); return; }
+    if (!Game.spend(PRICES.healthcare.medicine, CATEGORIES.Healthcare)) return;
+    this.health = clamp(this.health + 25);
+    this.happiness = clamp(this.happiness - 2);
+    Game.advanceHours(1);
+  }
+
+  vetVisit(){
+    if (!Game.spend(PRICES.healthcare.vet, CATEGORIES.Vet)) return;
+    this.health = clamp(this.health + 40);
+    this.happiness = clamp(this.happiness - 5);
+    Game.advanceHours(2);
+    this.addBadge("Health Guardian (first vet visit)");
+  }
+
+  vaccinate(which){
+    const info = this.vaccines[which];
+    if (!info) return;
+    const cost = PRICES.healthcare.vaccine[which];
+    if (!Game.spend(cost, CATEGORIES.Healthcare)) return;
+    info.done = true;
+    info.boosterDue = Game.state.day + 20;
+    Game.toast(`${this.name} vaccinated for ${which}. Booster due day ${info.boosterDue}.`, "good");
+  }
+
+  setDiet(plan){
+    this.dietPlan = plan;
+    Game.toast(`${this.name}'s diet set to ${plan}.`);
+  }
+
+  doTrick(trick){
+    if (!this.learnedTricks.includes(trick)){ Game.toast(`${this.name} hasn't learned ${trick} yet.`,"warn"); return; }
+    this.happiness = clamp(this.happiness + 10);
+    this.energy = clamp(this.energy - 5);
+    this.xp += 6;
+    this.levelCheck();
+    Game.advanceHours(1);
+    Game.toast(`${this.name} performs ${trick}!`, "good");
+  }
+}
+
+class Household {
+  constructor(){
+    this.wallet = 120;
+    this.weeklyBudget = null;
+    this.weeklySpend = 0;
+    this.savingsGoal = null;
+    this.expenses = {Food:0,Supplies:0,Healthcare:0,Toys:0,Vet:0,Other:0};
+    this.incomeEarned = 0;
+
+    this.day = 1;
+    this.hour = 8;
+    this.pets = [];
+    this.dailyTasks = this.makeDailyTasks();
+    this.dailyCompleted = 0;
+    this.dailyStreak = 0;
+    this.lastDailyResetDay = 1;
+
+    this.badges = ["First Day Together"];
+  }
+
+  snapshot(){
+    return {
+      wallet:this.wallet, weeklyBudget:this.weeklyBudget, weeklySpend:this.weeklySpend,
+      savingsGoal:this.savingsGoal, expenses:this.expenses, incomeEarned:this.incomeEarned,
+      day:this.day, hour:this.hour, pets:this.pets.map(p=>p.snapshot()),
+      dailyTasks:this.dailyTasks, dailyCompleted:this.dailyCompleted, dailyStreak:this.dailyStreak,
+      lastDailyResetDay:this.lastDailyResetDay, badges:this.badges
+    };
+  }
+
+  static from(data){
+    const h = new Household();
+    Object.assign(h, data);
+    h.pets = data.pets.map(Pet.from);
+    return h;
+  }
+
+  season(){
+    const idx = Math.floor((this.day-1)/SEASON_LENGTH)%4;
+    return ["Spring","Summer","Autumn","Winter"][idx];
+  }
+
+  spend(amount, category){
+    amount = Math.max(0, Math.round(amount));
+    if (amount<=0) return true;
+    if (this.wallet < amount){
+      Game.toast(`Not enough funds. Need ${amount}, have ${this.wallet}.`, "danger");
+      return false;
+    }
+    if (this.weeklyBudget!=null && (this.weeklySpend + amount) > this.weeklyBudget){
+      // warning; proceed automatically (UI is single-step), but highlight
+      Game.toast("Warning: This exceeds your weekly budget.", "warn");
+    }
+    this.wallet -= amount;
+    this.weeklySpend += amount;
+    if (!this.expenses[category]) this.expenses[category]=0;
+    this.expenses[category] += amount;
+    return true;
+  }
+
+  earn(min,max, energyCost= -10, cleanCost=-5){
+    const pet = Game.activePet();
+    if (!pet){ Game.toast("Select a pet first.", "warn"); return 0; }
+    const payout = randInt(min,max);
+    this.wallet += payout;
+    this.incomeEarned += payout;
+    pet.energy = clamp(pet.energy + energyCost);
+    pet.cleanliness = clamp(pet.cleanliness + cleanCost);
+    pet.hunger = clamp(pet.hunger + 8);
+    pet.happiness = clamp(pet.happiness + 2);
+    Game.advanceHours(1);
+    Game.toast(`Chore complete. Earned ${payout}.`, "good");
+    if (this.wallet >= 200 && !this.badges.includes("Cash Saver (200+)")){
+      this.badges.push("Cash Saver (200+)");
+    }
+    return payout;
+  }
+
+  addPet(name, species){
+    const p = new Pet({name, species});
+    this.pets.push(p);
+    Game.toast(`Added pet ${name} the ${species}.`, "good");
+    Game.save();
+    return p;
+  }
+
+  makeDailyTasks(){
+    // Reset every day: 3 consistent tasks
+    return [
+      {id:"task-brush", label:"Brush fur", done:false, reward:4},
+      {id:"task-shortwalk", label:"Short walk / play", done:false, reward:6},
+      {id:"task-cleanbowl", label:"Clean bowl", done:false, reward:3},
+    ];
+  }
+
+  resetDailyTasks(){
+    this.dailyTasks = this.makeDailyTasks();
+    this.dailyCompleted = 0;
+  }
+}
+
+/* ------------------------------- Game Core ------------------------------- */
+const Game = {
+  state: new Household(),
+  activePetId: null,
+  autosaveTimer: null,
+  autoTickTimer: null,
+
+  activePet(){
+    return this.state.pets.find(p => p.id === this.activePetId) || this.state.pets[0] || null;
+  },
+
+  selectPet(id){
+    this.activePetId = id;
+    this.render();
+  },
+
+  spend(amount, category){
+    return this.state.spend(amount, category);
+  },
+
+  addExpense(amount, category){
+    this.spend(amount, category);
+  },
+
+  advanceHours(h){
+    const s = this.state;
+    for (let i=0;i<h;i++){
+      s.hour++;
+      if (s.hour>=24){
+        s.hour = 0;
+        s.day++;
+        // weekly budget reset: day 1,8,15,... translates to day%7===1
+        if ((s.day % 7) === 1){
+          if (s.weeklyBudget!=null && s.weeklySpend <= s.weeklyBudget){
+            if (!s.badges.includes("Budget Hero")) s.badges.push("Budget Hero");
+          }
+          s.weeklySpend = 0;
+        }
+        // end-of-day per pet
+        s.pets.forEach(p => p.endOfDay());
+        // random events daily
+        this.randomEventsDaily();
+        // reset daily tasks
+        s.resetDailyTasks();
+      }
+      // hourly tick per pet
+      s.pets.forEach(p => p.tickOneHour(s.season()));
+    }
+    this.saveDebounced();
+    this.render();
+  },
+
+  randomEventsDaily(){
+    const s = this.state;
+    // Surprise gift
+    if (chance(0.12)){
+      if (chance(0.5)){
+        const coins = randInt(5,18);
+        s.wallet += coins;
+        s.incomeEarned += coins;
+        this.toast(`Surprise gift! You received ${coins} coins.`, "good");
+      } else {
+        // gift toy to random pet
+        const pet = this.activePet() || s.pets[0];
+        if (pet){
+          const toys = Object.keys(PRICES.toys);
+          const toy = toys[randInt(0,toys.length-1)];
+          if (!pet.toys.includes(toy)){
+            pet.toys.push(toy);
+            this.toast(`Surprise gift! ${pet.name} received a ${toy}.`, "good");
+          }
+        }
+      }
+    }
+    // Lost toy
+    if (chance(0.06)){
+      const pet = s.pets.find(p => p.toys.length>0);
+      if (pet){
+        const idx = randInt(0, pet.toys.length-1);
+        const lost = pet.toys.splice(idx,1)[0];
+        this.toast(`${pet.name} lost their ${lost} while playing outside.`, "warn");
+      }
+    }
+    // Spring allergies (if not vaccinated distemper) minor health hit
+    if (s.season()==="Spring"){
+      s.pets.forEach(p=>{
+        if (!(p.vaccines.distemper?.done) && chance(0.2)){
+          p.health = clamp(p.health - 5);
+          this.toast(`${p.name} has mild spring allergies. Consider vaccination.`, "warn");
+        }
+      });
+    }
+  },
+
+  /* ---------------------------- Persistence ---------------------------- */
+  save(){
+    const data = {version:1, nextPetId, state: this.state.snapshot(), activePetId:this.activePetId};
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+    this.toast("Game saved.");
+  },
+  saveDebounced(){
+    clearTimeout(this.autosaveTimer);
+    this.autosaveTimer = setTimeout(()=>this.save(), 500);
+  },
+  load(){
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw){ this.toast("No save found.","warn"); return; }
+    try{
+      const data = JSON.parse(raw);
+      nextPetId = data.nextPetId || 1;
+      this.state = Household.from(data.state);
+      this.activePetId = data.activePetId || (this.state.pets[0]?.id || null);
+      this.toast("Loaded save.", "good");
+      this.render();
+    }catch(e){
+      console.error(e);
+      this.toast("Failed to load save.","danger");
+    }
+  },
+  reset(){
+    if (!confirm("Reset game? This clears your local save.")) return;
+    localStorage.removeItem(LOCAL_KEY);
+    this.state = new Household();
+    nextPetId = 1;
+    this.activePetId = null;
+    this.render();
+    this.toast("Game reset.");
+  },
+  export(){
+    const data = {version:1, nextPetId, state: this.state.snapshot(), activePetId:this.activePetId};
+    return JSON.stringify(data, null, 2);
+  },
+  import(json){
+    try{
+      const data = JSON.parse(json);
+      nextPetId = data.nextPetId || 1;
+      this.state = Household.from(data.state);
+      this.activePetId = data.activePetId || (this.state.pets[0]?.id || null);
+      this.save();
+      this.render();
+      this.toast("Import successful.", "good");
+    }catch(e){
+      console.error(e);
+      this.toast("Import failed.","danger");
+    }
+  },
+
+  /* ------------------------------- Shop ------------------------------- */
+  buyToy(toy, pet){
+    const price = PRICES.toys[toy];
+    if (!this.spend(price, CATEGORIES.Toys)) return;
+    if (!pet.toys.includes(toy)) pet.toys.push(toy);
+    this.render();
+  },
+  buySupply(name){
+    const price = PRICES.supplies[name];
+    if (!this.spend(price, CATEGORIES.Supplies)) return;
+    const p = this.activePet();
+    if (!p) return;
+    p.supplies[name] = (p.supplies[name]||0)+1;
+    this.render();
+  },
+
+  /* ------------------------------- UI ------------------------------- */
+  init(){
+    // Create a starter pet if empty
+    if (this.state.pets.length===0){
+      const p = this.state.addPet("Nova","fox");
+      this.activePetId = p.id;
+    }
+
+    // Tab switching
+    document.querySelectorAll(".tabs button").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        document.querySelectorAll("section[id^=tab-]").forEach(s=>s.classList.add("hidden"));
+        document.getElementById(btn.dataset.tab).classList.remove("hidden");
+      });
+    });
+
+    // Sidebar
+    document.getElementById("btnAddPet").addEventListener("click", ()=>{
+      const name = prompt("Pet name?");
+      if (!name) return;
+      const species = prompt("Pet type/species? (dog, cat, dragon...)") || "pet";
+      const p = this.state.addPet(name.trim(), species.trim());
+      this.activePetId = p.id;
+      this.save();
+      this.render();
+    });
+    document.getElementById("petSearch").addEventListener("input", ()=>this.renderPetList());
+
+    // Header controls
+    document.getElementById("btnNextHour").addEventListener("click", ()=>this.advanceHours(1));
+    document.getElementById("btnNext6").addEventListener("click", ()=>this.advanceHours(6));
+    document.getElementById("autoTick").addEventListener("change", (e)=>{
+      if (e.target.checked){
+        this.autoTickTimer = setInterval(()=>this.advanceHours(1), 3500);
+      } else {
+        clearInterval(this.autoTickTimer);
+      }
+    });
+
+    // Actions
+    document.getElementById("btnFeed").addEventListener("click", ()=>{
+      const p = this.activePet(); if (!p){this.toast("Select a pet.","warn"); return;}
+      const kind = document.getElementById("feedType").value;
+      p.feed(kind);
+      this.render();
+    });
+    document.getElementById("btnPlay").addEventListener("click", ()=>{
+      const p = this.activePet(); if (!p){this.toast("Select a pet.","warn"); return;}
+      const toy = document.getElementById("toySelect").value || null;
+      p.play(toy);
+      this.render();
+    });
+    document.getElementById("btnRest").addEventListener("click", ()=>{
+      const p = this.activePet(); if (!p){this.toast("Select a pet.","warn"); return;}
+      const hrs = parseInt(document.getElementById("restHours").value||"4");
+      p.rest(hrs);
+      this.render();
+    });
+    document.getElementById("btnClean").addEventListener("click", ()=>{
+      const p = this.activePet(); if (!p){this.toast("Select a pet.","warn"); return;}
+      const kind = document.getElementById("cleanType").value;
+      p.clean(kind);
+      this.render();
+    });
+    document.getElementById("btnMedicate").addEventListener("click", ()=>{
+      const p = this.activePet(); if (!p){this.toast("Select a pet.","warn"); return;}
+      p.medicate(); this.render();
+    });
+    document.getElementById("btnVet").addEventListener("click", ()=>{
+      const p = this.activePet(); if (!p){this.toast("Select a pet.","warn"); return;}
+      p.vetVisit(); this.render();
+    });
+    document.getElementById("btnVaccinate").addEventListener("click", ()=>{
+      const p = this.activePet(); if (!p){this.toast("Select a pet.","warn"); return;}
+      const which = document.getElementById("vaxType").value;
+      p.vaccinate(which); this.render();
+    });
+    document.getElementById("btnDiet").addEventListener("click", ()=>{
+      const p = this.activePet(); if (!p){this.toast("Select a pet.","warn"); return;}
+      const plan = document.getElementById("dietPlan").value;
+      p.setDiet(plan); this.render();
+    });
+    document.getElementById("btnTrick").addEventListener("click", ()=>{
+      const p = this.activePet(); if (!p){this.toast("Select a pet.","warn"); return;}
+      const trick = document.getElementById("trickSelect").value;
+      if (trick) p.doTrick(trick);
+      this.render();
+    });
+
+    // Shop + Budget
+    document.getElementById("btnSetBudget").addEventListener("click", ()=>{
+      const v = document.getElementById("weeklyBudget").value;
+      const n = parseInt(v);
+      if (isNaN(n) || n<0){ this.toast("Enter a non-negative budget.","warn"); return; }
+      this.state.weeklyBudget = n;
+      if (!this.state.badges.includes("Budgeter")) this.state.badges.push("Budgeter");
+      this.save();
+      this.render();
+    });
+    document.getElementById("btnSetGoal").addEventListener("click", ()=>{
+      const v = document.getElementById("savingsGoal").value;
+      const n = parseInt(v);
+      if (isNaN(n) || n<=0){ this.toast("Enter a positive goal.","warn"); return; }
+      this.state.savingsGoal = n; this.save(); this.render();
+    });
+
+    // Chores
+    document.getElementById("chores").addEventListener("click", (e)=>{
+      const el = e.target.closest("button[data-chore]");
+      if (!el) return;
+      const type = el.dataset.chore;
+      if (type==="flyers") this.state.earn(10,16,-10,-5);
+      if (type==="dishes") this.state.earn(8,12,-6,0);
+      if (type==="mow") this.state.earn(12,20,-12,-8);
+      if (type==="tutor") this.state.earn(14,22,-8,0);
+      this.render();
+    });
+
+    // Daily tasks
+    document.getElementById("dailyTasks").addEventListener("click", (e)=>{
+      const cb = e.target.closest("input[type=checkbox][data-task]");
+      if (!cb) return;
+      const id = cb.dataset.task;
+      const t = this.state.dailyTasks.find(x=>x.id===id);
+      if (!t || t.done) return;
+      t.done = true;
+      this.state.dailyCompleted++;
+      this.state.wallet += t.reward;
+      this.state.incomeEarned += t.reward;
+      this.toast(`Task done: ${t.label} (+${t.reward})`, "good");
+      // Bonus for all tasks
+      if (this.state.dailyCompleted === this.state.dailyTasks.length){
+        this.state.dailyStreak++;
+        this.state.wallet += 10;
+        this.toast(`All daily tasks complete! Streak ${this.state.dailyStreak} (+10)`, "good");
+      }
+      this.save();
+      this.render();
+    });
+
+    // Finance + Save / Load
+    document.getElementById("btnSave").addEventListener("click", ()=>this.save());
+    document.getElementById("btnLoad").addEventListener("click", ()=>this.load());
+    document.getElementById("btnReset").addEventListener("click", ()=>this.reset());
+    document.getElementById("btnExport").addEventListener("click", ()=>{
+      const str = this.export();
+      document.getElementById("exportArea").value = str;
+      this.toast("Exported to text area.");
+    });
+    document.getElementById("btnImport").addEventListener("click", ()=>{
+      const input = document.getElementById("importFile");
+      if (!input.files || !input.files[0]){ this.toast("Choose a JSON file.","warn"); return; }
+      const reader = new FileReader();
+      reader.onload = (e)=> this.import(e.target.result);
+      reader.readAsText(input.files[0]);
+    });
+
+    // Initial render and autosave
+    this.load(); // load if exists
+    if (!this.activePet()) this.activePetId = this.state.pets[0]?.id || null;
+    this.render();
+  },
+
+  render(){
+    this.renderHeader();
+    this.renderPetList();
+    this.renderPetsTab();
+    this.renderActionsTab();
+    this.renderShopTab();
+    this.renderGoalsTab();
+    this.renderFinanceTab();
+    // Save minimal
+  },
+
+  renderHeader(){
+    const s = this.state;
+    document.getElementById("kpiWallet").innerText = s.wallet;
+    document.getElementById("kpiSpend").innerText = s.weeklySpend;
+    const budgetEl = document.getElementById("kpiBudget");
+    budgetEl.innerText = s.weeklyBudget!=null ? `/ ${s.weeklyBudget}` : "(no budget)";
+    document.getElementById("kpiDay").innerText = s.day;
+    document.getElementById("kpiHour").innerText = `${String(s.hour).padStart(2,"0")}:00`;
+    document.getElementById("kpiSeason").innerText = s.season();
+    const goalWrap = document.getElementById("kpiGoalWrap");
+    const goal = s.savingsGoal;
+    if (goal){ document.getElementById("kpiGoal").innerText = `${Math.min(s.wallet, goal)}/${goal}`; goalWrap.style.display=""; }
+    else { document.getElementById("kpiGoal").innerText = "—"; goalWrap.style.display="none"; }
+  },
+
+  renderPetList(){
+    const cont = document.getElementById("petList");
+    const q = (document.getElementById("petSearch").value||"").toLowerCase();
+    cont.innerHTML = "";
+    this.state.pets
+      .filter(p=> p.name.toLowerCase().includes(q) || p.species.toLowerCase().includes(q))
+      .forEach(p=>{
+        const mood = p.mood();
+        const el = document.createElement("div");
+        el.className = "pet-card" + (p.id===this.activePetId ? " active" : "");
+        el.innerHTML = `
+          <div>
+            <div class="pet-name">${p.name} <span class="muted">[${p.species}]</span></div>
+            <div class="small muted">Lv ${p.level} • ${p.stage} • ${mood.txt}</div>
+          </div>
+          <div class="small">${mood.face}</div>
+        `;
+        el.addEventListener("click", ()=>this.selectPet(p.id));
+        cont.appendChild(el);
+      });
+  },
+
+  renderPetsTab(){
+    const p = this.activePet();
+    const summary = document.getElementById("petSummary");
+    const stats = document.getElementById("petStats");
+    const tricks = document.getElementById("petTricks");
+    const badges = document.getElementById("petBadges");
+    const moodText = document.getElementById("moodText");
+    if (!p){
+      summary.innerHTML = "<div class='muted'>No pets yet. Add one from the sidebar.</div>";
+      stats.innerHTML = ""; tricks.innerHTML=""; badges.innerHTML=""; moodText.innerText = "";
+      this.drawPet(null);
+      return;
+    }
+    summary.innerHTML = `
+      <div class="row">
+        <div><strong>${p.name}</strong> <span class="muted">[${p.species}]</span></div>
+      </div>
+      <div class="small muted">Day age: ${p.ageDays} • Level: ${p.level} (${p.xp} XP) • Stage: ${p.stage}</div>
+      <div class="small muted">Diet: ${p.dietPlan} • Toys: ${p.toys.length? p.toys.join(", "):"none"} • Supplies: soap x${p.supplies.soap||0}</div>
+      <div class="small muted">Vaccines: Distemper ${p.vaccines.distemper.done?"✔":"✖"} (due ${p.vaccines.distemper.dueDay}) • Rabies ${p.vaccines.rabies.done?"✔":"✖"} (due ${p.vaccines.rabies.dueDay})</div>
+    `;
+    stats.innerHTML = `
+      ${this.statRow("Hunger (lower is better)", p.hunger, true)}
+      ${this.statRow("Energy", p.energy)}
+      ${this.statRow("Cleanliness", p.cleanliness)}
+      ${this.statRow("Health", p.health)}
+      ${this.statRow("Happiness", p.happiness)}
+    `;
+    tricks.innerHTML = `
+      <div class="label">Tricks:</div>
+      <div class="small">${p.learnedTricks.length? p.learnedTricks.join(", "):"None yet."}</div>
+    `;
+    badges.innerHTML = `
+      <div class="label">Badges:</div>
+      <div class="small">${p.badges.length? p.badges.map(x=>`<span class="pill" style="margin:2px; display:inline-block">${x}</span>`).join(" "):"—"}</div>
+    `;
+    const mood = p.mood();
+    moodText.innerText = `Mood: ${mood.txt} ${mood.face}`;
+    this.drawPet(p);
+  },
+
+  statRow(label, value, invert=false){
+    const pct = clamp(invert? (100-value) : value, 0, 100);
+    let color = "#77c0ff";
+    if (!invert){
+      if (value >= 75) color = "#79f29c";
+      else if (value >= 40) color = "#ffd76b";
+      else color = "#ff6b6b";
+    } else {
+      // hunger invert: lower better
+      if (value <= 25) color = "#79f29c";
+      else if (value <= 60) color = "#ffd76b";
+      else color = "#ff6b6b";
+    }
+    return `
+      <div class="label">${label}: ${value}</div>
+      <div class="statbar"><div style="width:${pct}%; background:${color}"></div></div>
+    `;
+  },
+
+  drawPet(p){
+    const c = document.getElementById("petCanvas");
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0,0,c.width,c.height);
+
+    if (!p){
+      ctx.fillStyle = "#7ea0ff";
+      ctx.font = "16px system-ui";
+      ctx.fillText("Add a pet to begin!", 20, 30);
+      return;
+    }
+
+    // Background gradient shimmer
+    const grad = ctx.createLinearGradient(0,0,c.width,0);
+    grad.addColorStop(0,"#1a2040"); grad.addColorStop(1,"#11152e");
+    ctx.fillStyle = grad; ctx.fillRect(0,0,c.width,c.height);
+
+    // Pet body color by species
+    const palette = {
+      dog:"#b4866b", cat:"#c7b0a0", dragon:"#78e0d1", bunny:"#e1c0e9", fox:"#f79b5b", pet:"#c0d2ff"
+    };
+    const col = palette[p.species.toLowerCase()] || "#c0d2ff";
+
+    // Body
+    ctx.fillStyle = col;
+    const cx = 160, cy = 170, r = 60;
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+
+    // Ears (triangles)
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.moveTo(cx-40, cy-60); ctx.lineTo(cx-10, cy-100); ctx.lineTo(cx-5, cy-50); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx+40, cy-60); ctx.lineTo(cx+10, cy-100); ctx.lineTo(cx+5, cy-50); ctx.fill();
+
+    // Face based on mood
+    const mood = p.mood();
+    ctx.strokeStyle = "#0a0c18"; ctx.lineWidth = 3; ctx.lineCap="round";
+    // Eyes
+    const eyeY = cy-10;
+    if (mood.face==="x_x"){
+      ctx.beginPath(); ctx.moveTo(cx-20, eyeY-6); ctx.lineTo(cx-10, eyeY+6); ctx.moveTo(cx-10, eyeY-6); ctx.lineTo(cx-20, eyeY+6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx+20, eyeY-6); ctx.lineTo(cx+10, eyeY+6); ctx.moveTo(cx+10, eyeY-6); ctx.lineTo(cx+20, eyeY+6); ctx.stroke();
+    } else if (mood.face==="^_^"){
+      ctx.beginPath(); ctx.arc(cx-15, eyeY, 6, Math.PI, 0); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx+15, eyeY, 6, Math.PI, 0); ctx.stroke();
+    } else if (mood.face===":D"){
+      ctx.beginPath(); ctx.arc(cx-15, eyeY, 5, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx+15, eyeY, 5, 0, Math.PI*2); ctx.stroke();
+    } else if (mood.face===":("){
+      ctx.beginPath(); ctx.arc(cx-15, eyeY+5, 5, Math.PI, 0, true); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx+15, eyeY+5, 5, Math.PI, 0, true); ctx.stroke();
+    } else if (mood.face===">-|"){
+      ctx.beginPath(); ctx.moveTo(cx-20, eyeY); ctx.lineTo(cx-10, eyeY); ctx.moveTo(cx+20, eyeY); ctx.lineTo(cx+10, eyeY); ctx.stroke();
+    } else if (mood.face===">-|"){} else if (mood.face===">:|"){
+      ctx.beginPath(); ctx.moveTo(cx-20, eyeY); ctx.lineTo(cx-10, eyeY); ctx.moveTo(cx+20, eyeY); ctx.lineTo(cx+10, eyeY); ctx.stroke();
+    } else if (mood.face==="-_-"){
+      ctx.beginPath(); ctx.moveTo(cx-22, eyeY); ctx.lineTo(cx-8, eyeY); ctx.moveTo(cx+22, eyeY); ctx.lineTo(cx+8, eyeY); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(cx-15, eyeY, 5, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx+15, eyeY, 5, 0, Math.PI*2); ctx.stroke();
+    }
+    // Mouth
+    ctx.beginPath();
+    if (mood.face===":D") { ctx.arc(cx, cy+10, 16, 0, Math.PI, false); }
+    else if (mood.face===":(") { ctx.arc(cx, cy+22, 16, 0, Math.PI, true); }
+    else if (mood.face==="x_x") { ctx.moveTo(cx-10, cy+20); ctx.lineTo(cx+10, cy+20); }
+    else if (mood.face==="^_^") { ctx.arc(cx, cy+12, 10, 0, Math.PI, false); }
+    else { ctx.arc(cx, cy+18, 10, 0, Math.PI, false); }
+    ctx.stroke();
+
+    // Display species tag + name
+    ctx.fillStyle = "#cfe1ff"; ctx.font = "bold 18px system-ui";
+    ctx.fillText(`${p.name} [${p.species}] — Lv ${p.level} • ${p.stage}`, 20, 32);
+
+    // Toys icons
+    ctx.font = "13px system-ui"; ctx.fillStyle = "#99aaf0";
+    ctx.fillText(`Toys: ${p.toys.length? p.toys.join(", "):"none"}`, 20, 54);
+  },
+
+  renderActionsTab(){
+    const p = this.activePet();
+    // Toys select
+    const toySel = document.getElementById("toySelect");
+    toySel.innerHTML = `<option value="">No toy</option>` + (p? p.toys.map(t=>`<option value="${t}">${t}</option>`).join(""): "");
+    // Tricks select
+    const trickSel = document.getElementById("trickSelect");
+    trickSel.innerHTML = `<option value="">Choose trick</option>` + (p? p.learnedTricks.map(t=>`<option value="${t}">${t}</option>`).join("") : "");
+    // Diet plan dropdown
+    if (p) document.getElementById("dietPlan").value = p.dietPlan;
+    // Vaccine info
+    if (p) document.getElementById("vaxInfo").innerText =
+      `Due: Distemper day ${p.vaccines.distemper.dueDay} ${p.vaccines.distemper.done?"(done)":""}, ` +
+      `Rabies day ${p.vaccines.rabies.dueDay} ${p.vaccines.rabies.done?"(done)":""}`;
+  },
+
+  renderShopTab(){
+    const p = this.activePet();
+    // Toys
+    const toys = document.getElementById("shopToys");
+    toys.innerHTML = Object.keys(PRICES.toys).map(t=>{
+      const price = PRICES.toys[t];
+      const owned = p && p.toys.includes(t);
+      return `
+        <div class="row" style="margin-bottom:6px">
+          <div class="grow"><strong>${t}</strong> <span class="muted">(${price})</span> ${owned? '<span class="small good">owned</span>':''}</div>
+          <button class="btn" ${owned?'disabled':''} onclick="Game.buyToy('${t}', Game.activePet())">Buy</button>
+        </div>`;
+    }).join("");
+
+    // Supplies
+    const sup = document.getElementById("shopSupplies");
+    sup.innerHTML = Object.keys(PRICES.supplies).map(n=>{
+      const price = PRICES.supplies[n];
+      const count = p? (p.supplies[n]||0):0;
+      return `
+        <div class="row" style="margin-bottom:6px">
+          <div class="grow"><strong>${n}</strong> <span class="muted">(${price})</span> <span class="small">owned: ${count}</span></div>
+          <button class="btn" onclick="Game.buySupply('${n}')">Buy</button>
+        </div>`;
+    }).join("");
+    // Budget fields
+    document.getElementById("weeklyBudget").value = this.state.weeklyBudget ?? "";
+    document.getElementById("savingsGoal").value = this.state.savingsGoal ?? "";
+  },
+
+  renderGoalsTab(){
+    // Daily tasks
+    const wrap = document.getElementById("dailyTasks");
+    wrap.innerHTML = this.state.dailyTasks.map(t=>`
+      <div class="row" style="margin-bottom:6px">
+        <label class="grow"><input type="checkbox" data-task="${t.id}" ${t.done?"checked disabled":""}/> ${t.label}</label>
+        <span class="pill">+${t.reward}</span>
+      </div>
+    `).join("");
+    document.getElementById("dailyStreak").innerText = this.state.dailyStreak;
+    document.getElementById("dailyCompleted").innerText = this.state.dailyCompleted;
+
+    // Chores
+    const chores = document.getElementById("chores");
+    chores.innerHTML = `
+      <div class="row" style="margin-bottom:6px">
+        <div class="grow">Deliver flyers (+10–16)</div>
+        <button class="btn" data-chore="flyers">Do</button>
+      </div>
+      <div class="row" style="margin-bottom:6px">
+        <div class="grow">Wash dishes (+8–12)</div>
+        <button class="btn" data-chore="dishes">Do</button>
+      </div>
+      <div class="row" style="margin-bottom:6px">
+        <div class="grow">Mow lawn (+12–20)</div>
+        <button class="btn" data-chore="mow">Do</button>
+      </div>
+      <div class="row" style="margin-bottom:6px">
+        <div class="grow">Tutor friend (+14–22)</div>
+        <button class="btn" data-chore="tutor">Do</button>
+      </div>
+    `;
+  },
+
+  renderFinanceTab(){
+    // Expenses breakdown
+    const e = this.state.expenses;
+    const total = Object.values(e).reduce((a,b)=>a+b,0);
+    const br = document.getElementById("expenseBreakdown");
+    const row = (k,v)=>{
+      const pct = total? Math.round(100*v/total):0;
+      return `
+        <div class="label">${k}: ${v} (${pct}%)</div>
+        <div class="statbar"><div style="width:${pct}%; background:#86ffb7"></div></div>
+      `;
+    };
+    br.innerHTML = Object.keys(e).map(k=>row(k,e[k])).join("") || "<div class='muted'>No expenses yet.</div>";
+
+    // Summary
+    const fs = document.getElementById("financeSummary");
+    fs.innerHTML = `
+      <div>Income earned: <strong class="money">${this.state.incomeEarned}</strong></div>
+      <div>Total expenses: <strong class="money">${total}</strong></div>
+      <div>Weekly spend: <strong>${this.state.weeklySpend}</strong> ${this.state.weeklyBudget!=null?"/ "+this.state.weeklyBudget:"(no budget)"}</div>
+      <div class="hr"></div>
+      <div class="small muted">Badges: ${(this.state.badges||[]).map(b=>`<span class="pill" style="margin:2px; display:inline-block">${b}</span>`).join(" ")||"—"}</div>
+    `;
+  },
+
+  /* ------------------------------ Toasts ------------------------------ */
+  toast(msg, type=""){
+    const wrap = document.getElementById("toastWrap");
+    const div = document.createElement("div");
+    div.className = "toast " + (type==="warn"?"warn": type==="danger"?"danger": type==="good"?"good":"");
+    div.innerHTML = `<div class="small muted" style="margin-bottom:4px">${nowStr()}</div>${msg}`;
+    wrap.appendChild(div);
+    setTimeout(()=>{ div.style.opacity="0.0"; div.style.transition="opacity .5s"; }, 2800);
+    setTimeout(()=>wrap.removeChild(div), 3400);
+  }
+};
+
+/* ---------------------------- Global Wiring ---------------------------- */
+window.Game = Game; // for inline handlers
+window.addEventListener("load", ()=>Game.init());
+</script>
+</body>
+</html>

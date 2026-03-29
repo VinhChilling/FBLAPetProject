@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Virtual Pet</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>🐶 Virtual Pet</h1>
+    <div id="setup">
+      <input type="text" id="petNameInput" placeholder="Name your pet" />
+      <select id="petType">
+        <option value="dog">Dog</option>
+        <option value="cat">Cat</option>
+        <option value="dragon">Dragon</option>
+      </select>
+      <button onclick="startGame()">Start</button>
+    </div>
+
+    <div id="game" style="display:none;">
+      <h2 id="petName"></h2>
+      <p>Type: <span id="petTypeDisplay"></span></p>
+      <p>Mood: <span id="mood">Happy</span></p>
+      <p>Energy: <span id="energy">100</span></p>
+      <p>Health: <span id="health">100</span></p>
+      <p>Coins: 💰 <span id="coins">100</span></p>
+      <p>Total Expenses: $<span id="expenses">0</span></p>
+
+      <div class="actions">
+        <button onclick="feedPet()">Feed (-$5)</button>
+        <button onclick="playWithPet()">Play (-$10)</button>
+        <button onclick="restPet()">Rest</button>
+        <button onclick="cleanPet()">Clean (-$3)</button>
+        <button onclick="vetVisit()">Vet Visit (-$20)</button>
+        <button onclick="doChore()">Do Chore (+$10)</button>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

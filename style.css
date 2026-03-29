@@ -1,0 +1,22 @@
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #f0f8ff;
+  text-align: center;
+  padding: 20px;
+}
+
+.container {
+    
+  max-width: 500px;
+  margin: auto;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px #ccc;
+}
+
+.actions button {
+  margin: 5px;
+  padding: 10px 15px;
+  font-size: 1rem;
+}
